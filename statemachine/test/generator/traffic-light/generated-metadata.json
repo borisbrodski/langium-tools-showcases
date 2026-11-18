@@ -1,0 +1,12 @@
+{
+  "generatedFiles": [
+    {
+      "filename": "com/example/TrafficLightEvents.java",
+      "overwrite": true
+    },
+    {
+      "filename": "trafficlight.cpp",
+      "overwrite": true
+    }
+  ]
+}

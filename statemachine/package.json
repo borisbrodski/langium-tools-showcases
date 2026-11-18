@@ -2,9 +2,11 @@
   "name": "langium-statemachine-dsl",
   "displayName": "State Machine DSL",
   "version": "4.4.0",
-  "description": "Example language built with Langium",
+  "description": "Official Langium state machine example, extended with langium-tools.",
   "homepage": "https://langium.org",
   "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26",
+    "npm": ">=10.2.3",
     "vscode": "^1.123.0"
   },
   "license": "MIT",
@@ -49,28 +51,34 @@
   "type": "module",
   "main": "./out/extension.cjs",
   "scripts": {
-    "build": "node esbuild.mjs",
+    "build": "tsc -b tsconfig.src.json && node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "langium:generate": "langium generate",
-    "publish:next": "npm --no-git-tag-version version \"$(semver $npm_package_version -i minor)-next.$(git rev-parse --short HEAD)\" && npm publish --tag next",
-    "publish:latest": "npm publish --tag latest --access public"
+    "test": "npm run build && GENERATOR_TEST=verify vitest run",
+    "test:generate": "GENERATOR_TEST=generate vitest run test/generator"
   },
   "dependencies": {
     "chalk": "~6.0.1",
     "commander": "~15.1.0",
-    "langium": "~4.4.0",
-    "vscode-languageclient": "~11.0.0",
-    "vscode-languageserver": "~11.0.0"
+    "langium": "^4.4.2",
+    "langium-tools": "file:../../langium-tools",
+    "vscode-languageclient": "~10.1.0",
+    "vscode-languageserver": "~10.1.0"
   },
   "devDependencies": {
-    "langium-cli": "~4.4.0"
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.125.0",
+    "esbuild": "0.28.2",
+    "langium-cli": "^4.4.1",
+    "typescript": "~5.8.3",
+    "vitest": "~2.0.5"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eclipse-langium/langium.git",
-    "directory": "examples/statemachine"
+    "url": "git+https://github.com/borisbrodski/langium-tools-showcases.git",
+    "directory": "statemachine"
   },
-  "bugs": "https://github.com/eclipse-langium/langium/issues",
+  "bugs": "https://github.com/borisbrodski/langium-tools-showcases/issues",
   "author": {
     "name": "TypeFox",
     "url": "https://www.typefox.io"

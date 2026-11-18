@@ -1,12 +1,21 @@
-// this file is required for VSCode to work properly
 {
-  "extends": "./tsconfig.src.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "rootDir": "."
-  },
-  "include": [
-    "src/**/*",
-    "test/**/*"
-  ]
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "lib": ["ES2020", "DOM", "ESNext", "WebWorker"],
+        "types": ["node"],
+        "strict": true,
+        "strictPropertyInitialization": false,
+        "noUnusedLocals": true,
+        "noImplicitReturns": true,
+        "noImplicitOverride": true,
+        "verbatimModuleSyntax": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "moduleDetection": "force",
+        "sourceMap": true,
+        "noEmit": true
+    },
+    "include": ["src/**/*", "test/**/*", "esbuild.mjs", "vitest.config.ts"]
 }

@@ -1,0 +1,6 @@
+statemachine Idle
+
+initialState Sleeping
+
+state Sleeping
+end

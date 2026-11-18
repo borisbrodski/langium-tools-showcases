@@ -18,10 +18,7 @@
  * targeting non-existent states, actions referencing non-existent commands),
  * so that the validation phase produces actual diagnostics.
  *
- * Note that the `langium` package is resolved to its compiled `lib` output,
- * so run `npm run build` in `packages/langium` after switching branches.
- *
- * Run from the `examples/statemachine` directory with:
+ * Run from the `statemachine` directory of this repository with:
  *
  *     node --expose-gc --import tsx test/workspace-build-benchmark.ts
  *

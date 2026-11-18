@@ -4,9 +4,11 @@
  * terms of the MIT License, which is available in the project root.
  ******************************************************************************/
 
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { type Generated, expandToNode as toNode, joinToNode as join, toString } from 'langium/generate';
+import type { GeneratorManager } from 'langium-tools/generator';
+import { GeneratedContentManager } from 'langium-tools/generator';
+import { JavaImportManager, packageToPath } from 'langium-tools/lang/java';
 import type { State, Statemachine } from '../language-server/generated/ast.js';
 import { extractDestinationAndName } from './cli-util.js';
 
@@ -14,33 +16,102 @@ import { extractDestinationAndName } from './cli-util.js';
 // we suggest you to enable the display of white space characters in your editor.
 // In VS Code execute the 'Toggle Render Whitespace' command, for example.
 
-export function generateCpp(statemachine: Statemachine, filePath: string, destination: string | undefined): string {
+const JAVA_PACKAGE = 'com.example';
+
+/**
+ * Record the C++ program and the Java event enum for one machine.
+ *
+ * This function does not touch the disk. The caller decides the directory
+ * and when to write. `GeneratedContentManager` skips a write when the bytes
+ * are already there, so a second run keeps the file's modification time.
+ * Creating the same path twice with different text throws. That is the check
+ * you want before a workspace generator overwrites a file from another model.
+ *
+ * The file name comes from the document inside the workspace
+ * (`getDocumentLocalPath`), not from a path string passed beside the AST.
+ * Several documents can share one manager and be written together.
+ */
+export async function generate(model: Statemachine, output: GeneratorManager): Promise<void> {
+    emit(model, output, fileBaseName(output.getDocumentLocalPath()));
+}
+
+/**
+ * One-shot wrapper for a caller that has a file path and no workspace.
+ * The CLI uses {@link generate} instead, because it already has the document.
+ */
+export async function generateCpp(statemachine: Statemachine, filePath: string, destination: string | undefined): Promise<string> {
     const data = extractDestinationAndName(filePath, destination);
+    const collector = new GeneratedContentManager();
+    emit(statemachine, collector.generatorManagerFor(statemachine), data.name);
+    await collector.writeToDisk(data.destination);
+    return path.join(data.destination, `${data.name}.cpp`);
+}
+
+function fileBaseName(localName: string | undefined): string {
+    const sourceName = localName ?? 'statemachine.statemachine';
+    return path.basename(sourceName, path.extname(sourceName)).replace(/[.-]/g, '');
+}
+
+function emit(model: Statemachine, output: GeneratorManager, baseName: string): void {
     const ctx = <GeneratorContext>{
-        statemachine,
-        fileName: `${data.name}.cpp`,
-        destination: data.destination,
+        statemachine: model,
+        fileName: `${baseName}.cpp`,
+        destination: '',
     };
-    return generate(ctx);
+    output.createFile(`${baseName}.cpp`, toString(generateCppContent(ctx)));
+    output.createFile(javaEventsPath(model), javaEvents(model));
+}
+
+/**
+ * Events as a Java enum in `com.example`.
+ *
+ * `imp('java.util.function.Consumer')` returns `Consumer` and records the import.
+ * Call it while building the body, then `generateImports()`. A second class
+ * with the same simple name stays fully qualified. A class in the current
+ * package is not imported.
+ *
+ * `generateJavaFile` is the one-call form of this. It assembles the file with
+ * generator nodes from the Langium install inside langium-tools. This project
+ * has its own Langium, so those nodes would print as `[object Object]`.
+ * The import manager is plain data, so the showcase calls it directly.
+ *
+ * A machine with no events cannot be an enum (Java requires a constant),
+ * so that case is a class with a private constructor.
+ */
+function javaEvents(model: Statemachine): string {
+    const className = `${model.name}Events`;
+    const imports = new JavaImportManager(JAVA_PACKAGE);
+    const body = model.events.length === 0
+        ? toNode`
+            public final class ${className} {
+                private ${className}() {}
+            }
+        `
+        : toNode`
+            public enum ${className} {
+                ${model.events.map(event => event.name).join(',\n    ')};
+
+                public void dispatch(${imports.useClass('java.util.function.Consumer')}<${className}> listener) {
+                    listener.accept(this);
+                }
+            }
+        `;
+    const importBlock = imports.generateImports();
+    const header = importBlock.length > 0
+        ? `package ${JAVA_PACKAGE};\n\n${importBlock}\n\n`
+        : `package ${JAVA_PACKAGE};\n\n`;
+    const text = header + toString(body);
+    return text.endsWith('\n') ? text : `${text}\n`;
+}
+
+function javaEventsPath(model: Statemachine): string {
+    return `${String(packageToPath(JAVA_PACKAGE))}/${model.name}Events.java`;
 }
 
 interface GeneratorContext {
     statemachine: Statemachine;
     fileName: string;
     destination: string;
-}
-
-function generate(ctx: GeneratorContext): string {
-    const fileNode = generateCppContent(ctx);
-
-    if (!fs.existsSync(ctx.destination)) {
-        fs.mkdirSync(ctx.destination, { recursive: true });
-    }
-
-    const generatedFilePath = path.join(ctx.destination, ctx.fileName);
-    fs.writeFileSync(generatedFilePath, toString(fileNode));
-    return generatedFilePath;
-
 }
 
 function joinWithExtraNL<T>(content: T[], toString: (e: T) => Generated): Generated {

@@ -9,6 +9,7 @@ import * as path from 'node:path';
 import chalk from 'chalk';
 import type { AstNode, LangiumDocument, LangiumCoreServices } from 'langium';
 import { URI } from 'langium';
+import { getDocumentIssueSummary } from 'langium-tools/base';
 
 export async function extractDocument(fileName: string, extensions: readonly string[], services: LangiumCoreServices): Promise<LangiumDocument> {
     if (!extensions.includes(path.extname(fileName))) {
@@ -24,15 +25,17 @@ export async function extractDocument(fileName: string, extensions: readonly str
     const document = await services.shared.workspace.LangiumDocuments.getOrCreateDocument(URI.file(path.resolve(fileName)));
     await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
 
-    const validationErrors = (document.diagnostics ?? []).filter(e => e.severity === 1);
-    if (validationErrors.length > 0) {
-        console.error(chalk.red('There are validation errors:'));
-        for (const validationError of validationErrors) {
-            console.error(chalk.red(
-                `line ${validationError.range.start.line}: ${validationError.message} [${document.textDocument.getText(validationError.range)}]`
-            ));
-        }
+    // One summary for lexer, parser, and validation. The old loop only looked at
+    // diagnostics with severity 1, so a syntax error could be missed and a warning
+    // was invisible. Errors stop the generator. Warnings are printed and generation continues,
+    // which is what you want for a style check such as "state names should be capitalized".
+    const issues = getDocumentIssueSummary(document);
+    if (issues.countErrors > 0) {
+        console.error(chalk.red(`${document.uri.toString()}\n${issues.message}`));
         process.exit(1);
+    }
+    if (issues.countNonErrors > 0) {
+        console.log(chalk.yellow(`${document.uri.toString()}\n${issues.message}`));
     }
 
     return document;

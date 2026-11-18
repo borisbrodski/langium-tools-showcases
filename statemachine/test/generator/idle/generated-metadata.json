@@ -1,0 +1,12 @@
+{
+  "generatedFiles": [
+    {
+      "filename": "com/example/IdleEvents.java",
+      "overwrite": true
+    },
+    {
+      "filename": "idle.cpp",
+      "overwrite": true
+    }
+  ]
+}

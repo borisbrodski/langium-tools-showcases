@@ -1,66 +1,3 @@
-/******************************************************************************
- * Copyright 2022 TypeFox GmbH
- * This program and the accompanying materials are made available under the
- * terms of the MIT License, which is available in the project root.
- ******************************************************************************/
-
-import { EmptyFileSystem } from 'langium';
-import { expandToStringWithNL, toString, type Generated } from 'langium/generate';
-import { parseHelper } from 'langium/test';
-import { describe, expect, test } from 'vitest';
-import { generateCppContent } from '../src/cli/generator.js';
-import type { Statemachine } from '../src/language-server/generated/ast.js';
-import { createStatemachineServices } from '../src/language-server/statemachine-module.js';
-
-describe('Tests the code generator', () => {
-    const services = createStatemachineServices(EmptyFileSystem).statemachine;
-    const parse = parseHelper<Statemachine>(services);
-
-    test('Generation test', async () => {
-        const ast = await parse(input);
-
-        const generated: Generated = generateCppContent({
-            statemachine: ast.parseResult.value,
-            destination: undefined!, // not needed
-            fileName: undefined!,    // not needed
-        });
-
-        const text = toString(generated);
-
-        expect(text).toBe(expectedOutput);
-    });
-});
-
-const input = expandToStringWithNL`
-    statemachine TrafficLight
-
-    events
-        switchCapacity
-        next
-
-    initialState PowerOff
-
-    state PowerOff
-        switchCapacity => RedLight
-    end
-
-    state RedLight
-        switchCapacity => PowerOff
-        next => GreenLight
-    end
-
-    state YellowLight
-        switchCapacity => PowerOff
-        next => RedLight
-    end
-
-    state GreenLight
-        switchCapacity => PowerOff
-        next => YellowLight
-    end
-`;
-
-const expectedOutput = expandToStringWithNL`
 #include <iostream>
 #include <map>
 #include <string>
@@ -213,4 +150,3 @@ int main() {
     delete statemachine;
     return 0;
 }
-`;

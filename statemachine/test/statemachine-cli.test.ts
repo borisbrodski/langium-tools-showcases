@@ -7,30 +7,27 @@
 import type { ExecException } from 'child_process';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, test } from 'vitest';
 import { exec } from 'child_process';
 
+const here = path.dirname(fileURLToPath(import.meta.url));
+
 describe('Test the statemachine CLI', () => {
-    let fullPath: string;
-    let fileName = path.join(__dirname, '../example/trafficlight.statemachine');
-    const destination = 'statemachine-example-test';
+    const source = path.join(here, '../example/trafficlight.statemachine');
+    const destination = fs.mkdtempSync(path.join(os.tmpdir(), 'statemachine-'));
 
-    test('Generator command returns code 0 and creates expected files', async () => {
-        const result = await cli(['generate', fileName, '-d', destination]);
+    test('Generator command returns code 0 and creates the C++ program and the Java enum', async () => {
+        const result = await cli(['generate', source, '-d', destination]);
         expect(result.code).toBe(0);
-
-        fileName = fileName.replace(/\..*$/, '').replace(/[.-]/g, '');
-        fullPath = path.join(destination, `${path.basename(fileName)}.cpp`);
-        const generatedDirExists = fs.existsSync(fullPath);
-        expect(generatedDirExists).toBe(true);
+        expect(fs.existsSync(path.join(destination, 'trafficlight.cpp'))).toBe(true);
+        expect(fs.existsSync(path.join(destination, 'com/example/TrafficLightEvents.java'))).toBe(true);
     });
 
     afterAll(() => {
-        if (fs.existsSync(destination)) {
-            fs.rmdirSync(destination, { recursive: true });
-        }
+        fs.rmSync(destination, { recursive: true, force: true });
     });
-
 });
 
 interface CliResult {
@@ -42,7 +39,7 @@ interface CliResult {
 
 async function cli(args: string[]): Promise<CliResult> {
     return new Promise(resolve => {
-        exec(`node "${path.join(__dirname, '../bin/cli')}" "${args.join('" "')}"`, (error, stdout, stderr) => {
+        exec(`node "${path.join(here, '../bin/cli.js')}" "${args.join('" "')}"`, (error, stdout, stderr) => {
             resolve({
                 code: error && error.code ? error.code : 0,
                 error,
